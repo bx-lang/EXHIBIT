@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+        <title>Project EXHIBIT - Sparcl</title>
+        <link rel="stylesheet" href="./css/b.css" />
+        <link rel="shortcut icon" href="./images/favicon.ico" />
+        <link rel="icon" type="image/png" href="./images/favicon-16x16.png" sizes="16x16" />
+        <link rel="icon" type="image/png" href="./images/favicon-32x32.png" sizes="32x32" />
+        <link rel="apple-touch-icon" sizes="180x180" href="./images/apple-touch-icon.png" />
+        <script type="text/javascript" src="./js/currentlink.js"></script>
+    </head>
+    <body>
+        <header>
+            <nav>
+                <a class="top" href="./">Home</a>
+                <a href="./intro.html">Introduction</a>
+                <a href="./work.html">Systems</a> 
+                <a href="./publications.html">Papers</a>
+                <a href="./people.html">People</a> 
+            </nav>
+        </header>
+
+        <main role="main">
+            
+               <h1>Sparcl</h1>
+             
+            <p>Sparcl (a <strong>s</strong>ystem for <strong>pa</strong>rtially-<strong>r</strong>eversible <strong>c</strong>omputation with <strong>l</strong>inear types) is a higher-order linear-typed programming language to write invertible computation, leveraging partial invertibility.</p>
+<h2 id="links">Links</h2>
+<ul>
+<li><a href="https://github.com/kztk-m/sparcl">Repository</a> in GitHub</li>
+<li><a href="https://github.com/kztk-m/sparcl-agda">Proof scripts for the core part</a></li>
+</ul>
+<h2 id="programming-in-sparcl">Programming in Sparcl</h2>
+<h3 id="linear-types">Linear Types</h3>
+<p>Sparcl adopts a linear type system to ensure reversibility.</p>
+<pre><code>sig id : a -o a 
+def id x = x
+
+sig const : a -o b -&gt; a
+def const x _ = x </code></pre>
+<p>Here, <code>a -o b</code> denotes a linear function type, of which inhabitants are functions that use their inputs exactly once. In contrast, <code>a -&gt; b</code> denotes a unrestricted function type.</p>
+<p>They actually are shorthand notations for <code>a # One -&gt; b</code> and <code>a # Omega -&gt; b</code>, which allows us to define multiplicity-polymorphic functions.</p>
+<pre><code>sig app : p &lt;= q =&gt; (a # p -&gt; b) # r -&gt; a # q -&gt; b 
+def app f x = f x
+
+
+sig (.) : (q &lt;= s, q &lt;= t, p &lt;= t) =&gt; (b # q -&gt; c) # r -&gt; (a # p -&gt; b) # s -&gt; a # t -&gt; c 
+def (.) f g x = f (g x) </code></pre>
+<p>Here, <code>&lt;=</code> denotes the ordering of multiplicities defined by: <code>One &lt;= Omega</code>.</p>
+<h3 id="invertible-programming-in-sparcl">Invertible Programming in Sparcl</h3>
+<p>The basic idea of invertible programming in Sparcl is that a bijection between <code>a</code> and <code>b</code> is represented as a linear function <code>rev a -o rev b</code>.</p>
+<pre><code>sig notR : rev Bool -o rev Bool 
+def notR (rev True)  = rev False with not 
+      |  (rev False) = rev True</code></pre>
+<p>Here, <code>rev True : rev Bool</code> and <code>rev False : rev Bool</code> denotes invertible constructors, which are used for constructing <code>rev</code>-typed values. In general, a constructor <code>C : a1 -o a2 -o ... -o an -o b</code> comes with its invertible counterpart <code>rev C : rev a1 -o rev a2 -o ... -o rev an -o rev b</code>, leveraging the invertible nature of constructors.</p>
+<p>The <code>rev</code>-typed data are manipulated by the invertible pattern matching indicated by <code>rev</code> in a pattern. The invertible pattern matching comes with <code>with</code> conditions, which are used for determining branches in the backward execution. Here, the <code>with</code> condition <code>not</code> tells that the first branch must be taken for the output <code>False</code>. (We assume that <code>not</code> is appropriately defined.)</p>
+<p>By <code>unlift : (rev a -o rev b) -&gt; (a -&gt; b, b -&gt; a)</code>, one can obtain the bijection pair as ordinary functions.</p>
+<pre><code>sig : (Bool -&gt; Bool, Bool -&gt; Bool) 
+def notBij = unlift notR 
+
+sig : Bool -&gt; Bool 
+def notF = fst notBij 
+
+sig : Bool -&gt; Bool 
+def notB = snd notBij </code></pre>
+<p>Here, both <code>notF</code> and <code>notB</code> have the same behavior as <code>not</code>. (We assume that <code>fwd</code> and <code>bwd</code> are appropriately defined.)</p>
+<p>The functional representation of bijections is the key to express partial invertibility in a natural way: it is done just by taking additional parameters.</p>
+<pre><code>data Nat = Z | S Nat 
+
+sig add : Nat -o rev Nat -o rev Nat 
+def add Z     y = y 
+      | (S x) y = rev S (add x y)
+      
+sig mul : Nat -&gt; rev Nat -o rev Nat 
+def mul z (rev Z)   = rev Z with isZ
+      | z (rev S y) = add z (mul z y)</code></pre>
+<h3 id="the-pin-operator">The <code>pin</code> operator</h3>
+<p>Having the <code>rev</code> types and the functional representation is half solution to partial invertibility. We sometimes want to convert a reversible value (of type <code>rev a</code>) into an ordinary value (of type <code>a</code>) for natural programming. The operator <code>pin : rev a -o (a -&gt; rev b) -o rev (a, b)</code> gives a solution to the situation.</p>
+<p>For example, the following is an invertible function that computes differences of two consecutive elements in a list.</p>
+<pre><code>sig s2l : rev (List Int) -o rev (List Int) 
+def s2l = go 0 
+    where 
+      def go n (rev Nil) = rev Nil with null 
+           | n (rev Cons x xs) =                          -- x  : rev Int 
+             let rev (x, r) &lt;- pin x $ \x' -&gt; go x' xs in -- x' : Int 
+             rev Cons (sub n x) r 
+    end
+    
+sig sub : Int -&gt; rev Int -o rev Int 
+def sub n = lift (\x -&gt; x - n) (\x -&gt; x + n) </code></pre>
+<p>Notice that <code>go</code> has type <code>Int -&gt; rev (List Int) -o rev (List Int)</code>. Since <code>x</code> has type <code>rev Int</code>, we are not able to pass it as the first argument of <code>go</code> which requires <code>Int</code>. So, we use <code>pin</code> to address the issue.</p>
+        </main>
+
+        <footer>
+            Site proudly generated by
+            <a href="http://jaspervdj.be/hakyll">Hakyll</a>
+        </footer>
+    </body>
+</html>
