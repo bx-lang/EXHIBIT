@@ -36,7 +36,7 @@
 appendB z y = <span class="k">case*</span> z <span class="k">of</span>
    []  -&gt; y               <span class="k">with</span> (\_ -&gt; True) <span class="k">reconciled by</span> (\_ _ -&gt; [])
    a:x -&gt; a : appendB x y <span class="k">with</span> not . null   <span class="k">reconciled by</span> (\_ _ -&gt; undefined)</code></pre>
-<p>The point is that <code>appendB</code> uses pattern matching and structural recursion in the same way as how the unidirectional <code>append</code> may be defined in a standard functional programming, which can be contrasted to most other bidirectional languages that are based on stylised combinators. The resulting function may execute in both directions and is total in both directions. For example, with the function <code>uncurryB</code> defined as</p>
+<p>The point is that <code>appendB</code> uses pattern matching and structural recursion in the same way as how the unidirectional <code>append</code> may be defined in a standard functional programming, which can be contrasted to most other bidirectional languages that are based on stylised combinators. This design is also <a href="http://www2.sf.ecei.tohoku.ac.jp/~kztk/SynbitDemo/">beneficial for program synthesis</a>. The resulting function may execute in both directions and is total in both directions. For example, with the function <code>uncurryB</code> defined as</p>
 <pre><code>uncurryB :: (BX a -&gt; BX b -&gt; BX c) -&gt; BX (a, b) -&gt; BX c 
 uncurryB f x = <span class="k">let*</span> (a,b) = x <span class="k">in</span> f a b</code></pre>
 <p><code>appendB</code> can be executed in the two directions as follows.</p>
